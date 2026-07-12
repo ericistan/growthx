@@ -1,19 +1,32 @@
 {
   "name": "growthx",
-  "version": "0.0.0",
   "private": true,
+  "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
-    "test": "vitest",
-    "cf-typegen": "wrangler types"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint ."
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.12.4",
-    "@types/node": "^26.1.1",
-    "typescript": "^5.5.2",
-    "vitest": "~3.2.0",
+    "@cloudflare/vite-plugin": "^1.44.0",
+    "@tailwindcss/vite": "^4.3.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@vitejs/plugin-react": "^6.0.3",
+    "jsdom": "^29.1.1",
+    "oxlint": "^1.73.0",
+    "tailwindcss": "^4.3.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10",
     "wrangler": "^4.110.0"
   }
 }
