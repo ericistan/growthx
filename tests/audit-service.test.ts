@@ -78,4 +78,36 @@ describe("AuditService", () => {
     );
     expect(run.mock.calls[0]?.[0]).toContain("/opt/data/repager-runs/run-1");
   });
+
+  it("describes the AuditOutputSchema shape in the Hermes prompt", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repager-service-"));
+    created.push(root);
+    const store = new FileRunStore(root);
+    const run = vi.fn(async (_input: string, _sessionId: string) => ({
+      runId: "hermes-1",
+      status: "completed" as const,
+      output: "audit complete",
+    }));
+    const service = new AuditService({
+      store,
+      hermes: { run },
+      validateTarget: async (rawUrl) => new URL(rawUrl),
+      idFactory: () => "run-1",
+    });
+
+    await service.submit("https://example.com");
+    await service.waitFor("run-1");
+
+    const prompt = run.mock.calls[0]?.[0] ?? "";
+    for (const field of [
+      "findings",
+      "evidence",
+      "variants",
+      "qaReport",
+      "deploymentUrl",
+      "evidenceId",
+    ]) {
+      expect(prompt).toContain(field);
+    }
+  });
 });

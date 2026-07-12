@@ -56,6 +56,7 @@ export async function runSmokePipeline({ root, runId }: SmokePipelineInput) {
 
   const evidence = [
     EvidenceSchema.parse({
+      id: "evidence-1",
       claim: "Specific calls to action reduce ambiguity",
       sourceUrl: "https://example.com/evidence-fixture",
       sourceTitle: "Smoke fixture evidence",

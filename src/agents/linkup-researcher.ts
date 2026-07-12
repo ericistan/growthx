@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { LinkupClient, type SourcedAnswer } from "linkup-sdk";
 import { EvidenceSchema, type Evidence } from "../contracts.js";
 
@@ -39,6 +40,7 @@ export async function researchLandingPageEvidence(
     const firstSentence = normalizedSnippet.match(/^(.{1,280}?[.!?])(?:\s|$)/)?.[1];
     const claim = firstSentence ?? normalizedSnippet.slice(0, 280);
     return EvidenceSchema.parse({
+      id: `evidence-${randomUUID()}`,
       claim,
       sourceUrl: source.url,
       sourceTitle: source.name,

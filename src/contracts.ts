@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const EvidenceSchema = z.object({
+  id: z.string().min(1),
   claim: z.string().min(1),
   sourceUrl: z.string().url(),
   sourceTitle: z.string().min(1),
@@ -24,6 +25,7 @@ export const FindingSchema = z.object({
   observation: z.string().min(1),
   evidence: z.string().min(1),
   recommendation: z.string().min(1),
+  evidenceId: z.string().min(1).optional(),
 });
 
 export type Finding = z.infer<typeof FindingSchema>;
@@ -42,6 +44,15 @@ export const QaReportSchema = z.object({
 });
 
 export type QaReport = z.infer<typeof QaReportSchema>;
+
+export const VariantSchema = z.object({
+  variant: z.enum(["a", "b"]),
+  hypothesis: z.string().min(1),
+  deploymentUrl: z.string().url(),
+  qaStatus: z.enum(["pass", "revise", "block"]),
+});
+
+export type Variant = z.infer<typeof VariantSchema>;
 
 export const TraceEventSchema = z
   .object({
@@ -68,3 +79,39 @@ export const TraceEventSchema = z
   });
 
 export type TraceEvent = z.infer<typeof TraceEventSchema>;
+
+// The full result shape the Hermes agent must return as `RunRecord.output`
+// (see src/server/audit-service.ts#buildPrompt, which describes this shape
+// in prose for the agent). Frontend code parses `output` as JSON and
+// validates it against this schema before rendering real results.
+export const AuditOutputSchema = z
+  .object({
+    findings: z.array(FindingSchema).min(1),
+    evidence: z.array(EvidenceSchema).min(1),
+    variants: z.array(VariantSchema).length(2),
+    qaReport: QaReportSchema,
+    trace: z.array(TraceEventSchema).optional(),
+  })
+  .superRefine((output, context) => {
+    const letters = output.variants.map((variant) => variant.variant);
+    if (!letters.includes("a") || !letters.includes("b")) {
+      context.addIssue({
+        code: "custom",
+        path: ["variants"],
+        message: "Variants must contain exactly one 'a' and one 'b'",
+      });
+    }
+
+    const evidenceIds = new Set(output.evidence.map((item) => item.id));
+    output.findings.forEach((finding, index) => {
+      if (finding.evidenceId && !evidenceIds.has(finding.evidenceId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["findings", index, "evidenceId"],
+          message: `evidenceId "${finding.evidenceId}" does not match any evidence[].id`,
+        });
+      }
+    });
+  });
+
+export type AuditOutput = z.infer<typeof AuditOutputSchema>;
