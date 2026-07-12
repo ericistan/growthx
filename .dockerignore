@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-server/
+runs/
+.git/
+.env*
+*.log
+*.jpg
+*.png

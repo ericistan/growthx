@@ -1,0 +1,34 @@
+services:
+  repager-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: repager-api
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    volumes:
+      - ../data:/data
+    networks:
+      - hermes
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.repager-api.rule: "Host(`api.repager.com`) || Host(`repager-api.187.77.157.86.sslip.io`)"
+      traefik.http.routers.repager-api.entrypoints: websecure
+      traefik.http.routers.repager-api.tls.certresolver: letsencrypt
+      traefik.http.services.repager-api.loadbalancer.server.port: "3000"
+
+networks:
+  hermes:
+    external: true
+    name: hermes-data-fresh_default
