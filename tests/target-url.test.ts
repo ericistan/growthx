@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { validatePublicTargetUrl } from "../src/server/target-url.js";
 
 describe("validatePublicTargetUrl", () => {
+  it.each(["192.0.2.10", "198.51.100.7", "203.0.113.5", "2001:db8::1"])(
+    "rejects reserved address %s",
+    async (address) => {
+      await expect(
+        validatePublicTargetUrl("https://reserved.example", async () => [address]),
+      ).rejects.toThrow(/public/i);
+    },
+  );
+
   it("rejects a hostname that resolves to a private address", async () => {
     await expect(
       validatePublicTargetUrl("https://internal.example", async () => ["10.0.0.8"]),

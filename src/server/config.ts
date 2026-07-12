@@ -3,6 +3,7 @@ export interface ServerConfig {
   runsDir: string;
   hermesApiUrl: string;
   hermesApiKey: string;
+  submitApiKey: string;
   hermesWorkspaceRoot: string;
   corsOrigins: string[];
 }
@@ -12,6 +13,9 @@ export function loadServerConfig(
 ): ServerConfig {
   const hermesApiKey = environment.HERMES_API_KEY?.trim();
   if (!hermesApiKey) throw new Error("HERMES_API_KEY is required");
+
+  const submitApiKey = environment.SUBMIT_API_KEY?.trim();
+  if (!submitApiKey) throw new Error("SUBMIT_API_KEY is required");
 
   const corsOrigins = (environment.CORS_ORIGINS ?? "")
     .split(",")
@@ -32,6 +36,7 @@ export function loadServerConfig(
       "",
     ),
     hermesApiKey,
+    submitApiKey,
     hermesWorkspaceRoot:
       environment.HERMES_WORKSPACE_ROOT ?? "/opt/data/repager-runs",
     corsOrigins,

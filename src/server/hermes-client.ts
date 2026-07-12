@@ -17,6 +17,8 @@ interface HermesRunsClientOptions {
   fetchFn?: typeof fetch;
   sleep?: (milliseconds: number) => Promise<void>;
   pollIntervalMs?: number;
+  maxRunMs?: number;
+  now?: () => number;
 }
 
 export class HermesRunsClient {
@@ -25,6 +27,8 @@ export class HermesRunsClient {
   private readonly fetchFn: typeof fetch;
   private readonly sleep: (milliseconds: number) => Promise<void>;
   private readonly pollIntervalMs: number;
+  private readonly maxRunMs: number;
+  private readonly now: () => number;
 
   constructor(options: HermesRunsClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
@@ -35,6 +39,8 @@ export class HermesRunsClient {
       ((milliseconds) =>
         new Promise((resolve) => setTimeout(resolve, milliseconds)));
     this.pollIntervalMs = options.pollIntervalMs ?? 2_000;
+    this.maxRunMs = options.maxRunMs ?? 15 * 60 * 1_000;
+    this.now = options.now ?? Date.now;
   }
 
   async run(input: string, sessionId: string): Promise<HermesRunResult> {
@@ -42,8 +48,13 @@ export class HermesRunsClient {
       method: "POST",
       body: JSON.stringify({ input, session_id: sessionId }),
     });
+    const deadline = this.now() + this.maxRunMs;
 
     while (true) {
+      if (this.now() > deadline) {
+        await this.request(`/v1/runs/${created.run_id}/stop`, { method: "POST" });
+        throw new Error(`Hermes run timed out after ${this.maxRunMs}ms`);
+      }
       const state = await this.request(`/v1/runs/${created.run_id}`);
       if (state.status === "completed") {
         return {

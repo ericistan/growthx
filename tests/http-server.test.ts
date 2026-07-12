@@ -12,6 +12,30 @@ afterEach(async () => {
 });
 
 describe("RePager HTTP API", () => {
+  it("rejects unauthenticated audit requests", async () => {
+    const service = {
+      submit: vi.fn(),
+      get: vi.fn(),
+    };
+    const server = createRepagerServer({
+      service,
+      corsOrigins: ["https://repager.test"],
+      apiKey: "submit-secret",
+    });
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as AddressInfo).port;
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/audits`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com" }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(service.submit).not.toHaveBeenCalled();
+  });
+
   it("submits an audit and returns its status", async () => {
     const record = {
       runId: "run-1",
@@ -24,17 +48,27 @@ describe("RePager HTTP API", () => {
       submit: vi.fn(async () => record),
       get: vi.fn(async () => record),
     };
-    const server = createRepagerServer({ service, corsOrigins: ["https://repager.test"] });
+    const server = createRepagerServer({
+      service,
+      corsOrigins: ["https://repager.test"],
+      apiKey: "submit-secret",
+    });
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as AddressInfo).port;
 
     const submitted = await fetch(`http://127.0.0.1:${port}/api/audits`, {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "https://repager.test" },
+      headers: {
+        authorization: "Bearer submit-secret",
+        "content-type": "application/json",
+        origin: "https://repager.test",
+      },
       body: JSON.stringify({ url: "https://example.com" }),
     });
-    const status = await fetch(`http://127.0.0.1:${port}/api/audits/run-1`);
+    const status = await fetch(`http://127.0.0.1:${port}/api/audits/run-1`, {
+      headers: { authorization: "Bearer submit-secret" },
+    });
 
     expect(submitted.status).toBe(202);
     expect(await submitted.json()).toMatchObject({ runId: "run-1", status: "queued" });

@@ -15,9 +15,11 @@ const service = new AuditService({
   hermes,
   hermesWorkspaceRoot: config.hermesWorkspaceRoot,
 });
+await service.recoverInterrupted();
 const server = createRepagerServer({
   service,
   corsOrigins: config.corsOrigins,
+  apiKey: config.submitApiKey,
 });
 
 server.listen(config.port, "0.0.0.0", () => {

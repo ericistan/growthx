@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { RunRecord } from "./run-store.js";
 
@@ -9,6 +10,7 @@ interface AuditApiService {
 interface RepagerServerOptions {
   service: AuditApiService;
   corsOrigins: string[];
+  apiKey: string;
 }
 
 export function createRepagerServer(options: RepagerServerOptions) {
@@ -33,6 +35,11 @@ async function routeRequest(
   const url = new URL(request.url ?? "/", "http://repager.local");
   if (request.method === "GET" && url.pathname === "/health") {
     sendJson(response, 200, { ok: true, service: "repager-api" });
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/") && !isAuthorized(request, options.apiKey)) {
+    sendJson(response, 401, { error: "Unauthorized" });
     return;
   }
 
@@ -77,7 +84,15 @@ function applyCors(
     response.setHeader("vary", "Origin");
   }
   response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
-  response.setHeader("access-control-allow-headers", "content-type");
+  response.setHeader("access-control-allow-headers", "authorization,content-type");
+}
+
+function isAuthorized(request: IncomingMessage, apiKey: string): boolean {
+  const authorization = request.headers.authorization;
+  if (!authorization?.startsWith("Bearer ")) return false;
+  const supplied = Buffer.from(authorization.slice(7));
+  const expected = Buffer.from(apiKey);
+  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
 }
 
 async function readBody(request: IncomingMessage): Promise<string> {

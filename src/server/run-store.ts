@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export type RunStatus = "queued" | "running" | "completed" | "failed";
@@ -53,6 +53,19 @@ export class FileRunStore {
     };
     await this.write(record);
     return record;
+  }
+
+  async list(): Promise<RunRecord[]> {
+    try {
+      const entries = await readdir(this.root, { withFileTypes: true });
+      const records = await Promise.all(
+        entries.filter((entry) => entry.isDirectory()).map((entry) => this.get(entry.name)),
+      );
+      return records.filter((record): record is RunRecord => record !== undefined);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
   }
 
   private async write(record: RunRecord): Promise<void> {

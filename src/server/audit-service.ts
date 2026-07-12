@@ -13,6 +13,7 @@ interface AuditServiceOptions {
   validateTarget?: (rawUrl: string) => Promise<URL>;
   idFactory?: () => string;
   hermesWorkspaceRoot?: string;
+  maxPendingRuns?: number;
 }
 
 export class AuditService {
@@ -21,6 +22,7 @@ export class AuditService {
   private readonly validateTarget: (rawUrl: string) => Promise<URL>;
   private readonly idFactory: () => string;
   private readonly hermesWorkspaceRoot: string;
+  private readonly maxPendingRuns: number;
   private readonly tasks = new Map<string, Promise<void>>();
   private queue: Promise<void> = Promise.resolve();
 
@@ -31,9 +33,13 @@ export class AuditService {
     this.idFactory = options.idFactory ?? randomUUID;
     this.hermesWorkspaceRoot =
       options.hermesWorkspaceRoot ?? "/opt/data/repager-runs";
+    this.maxPendingRuns = options.maxPendingRuns ?? 3;
   }
 
   async submit(rawUrl: string): Promise<RunRecord> {
+    if (this.tasks.size >= this.maxPendingRuns) {
+      throw new Error("Audit queue is full; try again later");
+    }
     const target = await this.validateTarget(rawUrl);
     const runId = this.idFactory();
     const record = await this.store.create({ runId, targetUrl: target.href });
@@ -46,6 +52,20 @@ export class AuditService {
 
   async get(runId: string): Promise<RunRecord | undefined> {
     return this.store.get(runId);
+  }
+
+  async recoverInterrupted(): Promise<void> {
+    const records = await this.store.list();
+    await Promise.all(
+      records
+        .filter((record) => record.status === "queued" || record.status === "running")
+        .map((record) =>
+          this.store.update(record.runId, {
+            status: "failed",
+            error: "Interrupted by service restart; submit a new audit",
+          }),
+        ),
+    );
   }
 
   async waitFor(runId: string): Promise<void> {

@@ -11,6 +11,53 @@ afterEach(async () => {
 });
 
 describe("AuditService", () => {
+  it("rejects submissions when the pending queue is full", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repager-service-"));
+    created.push(root);
+    const store = new FileRunStore(root);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const run = vi.fn(async () => {
+      await pending;
+      return { runId: "hermes-1", status: "completed" as const, output: "done" };
+    });
+    const ids = ["run-1", "run-2"];
+    const service = new AuditService({
+      store,
+      hermes: { run },
+      validateTarget: async (rawUrl) => new URL(rawUrl),
+      idFactory: () => ids.shift()!,
+      maxPendingRuns: 1,
+    });
+
+    await service.submit("https://one.example");
+
+    await expect(service.submit("https://two.example")).rejects.toThrow(/queue is full/i);
+    release();
+    await service.waitFor("run-1");
+  });
+
+  it("marks interrupted queued and running records failed on startup", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repager-service-"));
+    created.push(root);
+    const store = new FileRunStore(root);
+    await store.create({ runId: "queued-run", targetUrl: "https://one.example" });
+    await store.create({ runId: "running-run", targetUrl: "https://two.example" });
+    await store.update("running-run", { status: "running" });
+    const service = new AuditService({
+      store,
+      hermes: { run: vi.fn() },
+      validateTarget: async (rawUrl) => new URL(rawUrl),
+    });
+
+    await service.recoverInterrupted();
+
+    await expect(store.get("queued-run")).resolves.toMatchObject({ status: "failed" });
+    await expect(store.get("running-run")).resolves.toMatchObject({ status: "failed" });
+  });
+
   it("runs only one Hermes audit at a time", async () => {
     const root = await mkdtemp(join(tmpdir(), "repager-service-"));
     created.push(root);
