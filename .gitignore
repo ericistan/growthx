@@ -168,3 +168,9 @@ dist
 
 # macOS metadata
 .DS_Store
+
+# Lane B runtime artifacts
+runs/*
+!runs/.gitkeep
+site/generated/
+worker/tmp/
