@@ -49,11 +49,11 @@ function CheckIcon() {
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5" aria-label="GrowthX">
+    <div className="flex items-center gap-2.5" aria-label="RePager">
       <span className="grid size-7 place-items-center rounded-md border border-white/10 bg-white/[0.04]">
         <span className="size-2.5 rotate-45 rounded-[2px] bg-[#c7f36b] shadow-[0_0_18px_rgba(199,243,107,0.45)]" />
       </span>
-      <span className="text-[15px] font-semibold tracking-[-0.02em] text-[#f4f4f5]">GrowthX</span>
+      <span className="text-[15px] font-semibold tracking-[-0.02em] text-[#f4f4f5]">RePager</span>
     </div>
   )
 }
