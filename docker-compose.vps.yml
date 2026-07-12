@@ -23,9 +23,14 @@ services:
       start_period: 10s
     labels:
       traefik.enable: "true"
-      traefik.http.routers.repager-api.rule: "Host(`api.repager.com`) || Host(`repager-api.187.77.157.86.sslip.io`)"
+      traefik.http.routers.repager-api.rule: "Host(`api.repager.com`)"
       traefik.http.routers.repager-api.entrypoints: websecure
       traefik.http.routers.repager-api.tls.certresolver: letsencrypt
+      traefik.http.routers.repager-api.service: repager-api
+      traefik.http.routers.repager-api-temp.rule: "Host(`repager-api.187.77.157.86.sslip.io`)"
+      traefik.http.routers.repager-api-temp.entrypoints: websecure
+      traefik.http.routers.repager-api-temp.tls.certresolver: letsencrypt
+      traefik.http.routers.repager-api-temp.service: repager-api
       traefik.http.services.repager-api.loadbalancer.server.port: "3000"
 
 networks:
