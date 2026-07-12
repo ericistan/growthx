@@ -3,10 +3,10 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), cloudflare()],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), tailwindcss(), ...(mode === 'test' ? [] : [cloudflare()])],
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
   },
-})
+}))

@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "hermes-buildathon-agency",
+  "main": "./cloudflare/worker.ts",
   "compatibility_date": "2026-07-12",
   "workers_dev": true,
   "preview_urls": true,
@@ -9,7 +10,11 @@
   },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "REPAGER_API_URL": "https://repager-api.187.77.157.86.sslip.io"
   },
   "observability": {
     "enabled": true

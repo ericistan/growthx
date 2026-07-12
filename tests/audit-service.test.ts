@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuditService } from "../src/server/audit-service.js";
-import { FileRunStore } from "../src/server/run-store.js";
+import { FileRunStore, type RunRecord } from "../src/server/run-store.js";
 
 const created: string[] = [];
 afterEach(async () => {
@@ -11,6 +11,47 @@ afterEach(async () => {
 });
 
 describe("AuditService", () => {
+  it("atomically caps concurrent submissions before async validation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "repager-service-"));
+    created.push(root);
+    const store = new FileRunStore(root);
+    let releaseValidation!: () => void;
+    const validationGate = new Promise<void>((resolve) => {
+      releaseValidation = resolve;
+    });
+    const service = new AuditService({
+      store,
+      hermes: {
+        run: vi.fn(async () => ({
+          runId: "hermes-1",
+          status: "completed" as const,
+          output: "done",
+        })),
+      },
+      validateTarget: async (rawUrl) => {
+        await validationGate;
+        return new URL(rawUrl);
+      },
+      maxPendingRuns: 3,
+    });
+
+    const submissions = Array.from({ length: 4 }, (_, index) =>
+      service.submit(`https://${index}.example`),
+    );
+    releaseValidation();
+    const results = await Promise.allSettled(submissions);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(3);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    await Promise.all(
+      results
+        .filter((result): result is PromiseFulfilledResult<RunRecord> =>
+          result.status === "fulfilled",
+        )
+        .map((result) => service.waitFor(result.value.runId)),
+    );
+  });
+
   it("rejects submissions when the pending queue is full", async () => {
     const root = await mkdtemp(join(tmpdir(), "repager-service-"));
     created.push(root);

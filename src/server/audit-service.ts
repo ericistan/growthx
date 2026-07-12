@@ -24,6 +24,7 @@ export class AuditService {
   private readonly hermesWorkspaceRoot: string;
   private readonly maxPendingRuns: number;
   private readonly tasks = new Map<string, Promise<void>>();
+  private admittedRuns = 0;
   private queue: Promise<void> = Promise.resolve();
 
   constructor(options: AuditServiceOptions) {
@@ -37,17 +38,28 @@ export class AuditService {
   }
 
   async submit(rawUrl: string): Promise<RunRecord> {
-    if (this.tasks.size >= this.maxPendingRuns) {
+    if (this.admittedRuns >= this.maxPendingRuns) {
       throw new Error("Audit queue is full; try again later");
     }
-    const target = await this.validateTarget(rawUrl);
-    const runId = this.idFactory();
-    const record = await this.store.create({ runId, targetUrl: target.href });
-    const task = this.queue.then(() => this.execute(record));
-    this.queue = task.catch(() => undefined);
-    this.tasks.set(runId, task);
-    void task.finally(() => this.tasks.delete(runId)).catch(() => undefined);
-    return record;
+    this.admittedRuns += 1;
+    try {
+      const target = await this.validateTarget(rawUrl);
+      const runId = this.idFactory();
+      const record = await this.store.create({ runId, targetUrl: target.href });
+      const task = this.queue.then(() => this.execute(record));
+      this.queue = task.catch(() => undefined);
+      this.tasks.set(runId, task);
+      void task
+        .finally(() => {
+          this.tasks.delete(runId);
+          this.admittedRuns -= 1;
+        })
+        .catch(() => undefined);
+      return record;
+    } catch (error) {
+      this.admittedRuns -= 1;
+      throw error;
+    }
   }
 
   async get(runId: string): Promise<RunRecord | undefined> {
